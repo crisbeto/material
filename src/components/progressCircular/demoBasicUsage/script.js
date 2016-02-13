@@ -7,6 +7,7 @@ angular
       self.modes = [ ];
       self.activated = true;
       self.determinateValue = 30;
+      self.diameter = 100;
 
       /**
        * Turn off or on the 5 themed loaders

@@ -137,6 +137,11 @@ md-progress-circular {
 
 }
 
+md-progress-circular-new {
+  circle {
+    transition: stroke-dashoffset 0.1s linear;
+  }
+}
 
 //
 // Keyframe animation for the Indeterminate Progress

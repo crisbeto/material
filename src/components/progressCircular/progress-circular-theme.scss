@@ -69,3 +69,9 @@ md-progress-circular.md-THEME_NAME-theme {
     }
   }
 }
+
+md-progress-circular-new.md-THEME_NAME-theme{
+  path, circle{
+    stroke: '{{primary-color}}';
+  }
+}
