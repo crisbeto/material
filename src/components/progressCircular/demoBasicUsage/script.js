@@ -1,21 +1,21 @@
 angular
   .module('progressCircularDemo1', ['ngMaterial'])
-  .controller('AppCtrl', ['$interval',
-    function($interval) {
-      var self = this;
+  .controller('AppCtrl', ['$interval', '$scope', '$mdDialog',
+    function($interval, $scope, $mdDialog) {
+      $scope.people = [];
+          for (i = 0; i < 500; i++) {
+            $scope.people.push(i);
+          }
 
-      self.activated = true;
-      self.determinateValue = 30;
-
-      // Iterate every 100ms, non-stop and increment
-      // the Determinate loader.
-      $interval(function() {
-
-        self.determinateValue += 1;
-        if (self.determinateValue > 100) {
-          self.determinateValue = 30;
-        }
-
-      }, 100);
+          $scope.goToPerson = function(person, event) {
+            $mdDialog.show(
+              $mdDialog.alert()
+              .title('Navigating')
+              .textContent('Inspect ' + person)
+              .ariaLabel('Person inspect demo')
+              .ok('Neat!')
+              .targetEvent(event)
+            );
+          };
     }
   ]);

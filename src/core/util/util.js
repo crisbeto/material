@@ -776,18 +776,18 @@ function UtilFactory($document, $timeout, $compile, $rootScope, $$mdAnimate, $in
 
       function scrollChunk() {
         var newPosition = calculateNewPosition();
-        
+
         element.scrollTop = newPosition;
-        
+
         if (scrollingDown ? newPosition < scrollEnd : newPosition > scrollEnd) {
           $$rAF(scrollChunk);
         }
       }
-      
+
       function calculateNewPosition() {
         var duration = 1000;
         var currentTime = $mdUtil.now() - startTime;
-        
+
         return ease(currentTime, scrollStart, scrollChange, duration);
       }
 
@@ -797,7 +797,7 @@ function UtilFactory($document, $timeout, $compile, $rootScope, $$mdAnimate, $in
         if (currentTime > duration) {
           return start + change;
         }
-        
+
         var ts = (currentTime /= duration) * currentTime;
         var tc = ts * currentTime;
 
