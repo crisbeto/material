@@ -11,19 +11,56 @@ angular.module('material.core.theming', ['material.core.theming.palette'])
   .directive('mdThemable', ThemableDirective)
   .directive('mdThemesDisabled', disableThemesDirective )
   .provider('$mdTheming', ThemingProvider)
-  .config( detectDisabledThemes )
+  .config( setupTheming )
   .run(generateAllThemes);
 
 /**
  * Detect if the HTML or the BODY tags has a [md-themes-disabled] attribute
- * If yes, then immediately disable all theme stylesheet generation and DOM injection
+ * If yes, then immediately disable all theme stylesheet generation and DOM injection.
+ * Otherwise decompress the theme.
  */
 /**
  * @ngInject
  */
-function detectDisabledThemes($mdThemingProvider) {
+function setupTheming($mdThemingProvider, $provide, $MD_THEME_CSS) {
   var isDisabled = !!document.querySelector('[md-themes-disabled]');
   $mdThemingProvider.disableTheming(isDisabled);
+
+  if (!isDisabled) {
+    // TODO: this works in Node, but doesn't when decoding it in the browser.
+    // Seems like the browser messes up the encoding.
+    $provide.constant('$MD_THEME_CSS', lzwDecompress($MD_THEME_CSS));
+  }
+
+  // LZW-decompress a string
+  // via https://gist.github.com/revolunet/843889
+  function lzwDecompress(string) {
+    var dict = Object.create(null);
+    var data = decode((string + '')).split('');
+    var currChar = data[0];
+    var oldPhrase = currChar;
+    var out = [currChar];
+    var code = 256;
+    var phrase;
+
+    for (var i = 1; i < data.length; i++) {
+      var currCode = data[i].charCodeAt(0);
+
+      if (currCode < 256) {
+        phrase = data[i];
+      } else {
+        phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar);
+      }
+
+      out.push(phrase);
+      currChar = phrase.charAt(0);
+      dict[code] = oldPhrase + currChar;
+      code++;
+      oldPhrase = phrase;
+    }
+
+    return out.join('');
+  }
 }
 
 /**

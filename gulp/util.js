@@ -225,8 +225,10 @@ function themeBuildStream() {
       .pipe(concat('default-theme.scss'))
       .pipe(utils.hoistScssVariables())
       .pipe(sass())
+      .pipe(minifyCss())
       .pipe(dedupeCss())
-      .pipe(utils.cssToNgConstant('material.core', '$MD_THEME_CSS'));
+      .pipe(lzwCompress())
+      .pipe(utils.cssToNgConstant('material.core.theming', '$MD_THEME_CSS'));
 }
 
 // Removes duplicated CSS properties.
@@ -273,3 +275,39 @@ function dedupeCss() {
     });
   }
 }
+
+// LZW-compress a string
+// via https://gist.github.com/revolunet/843889
+function lzwCompress() {
+  return insert.transform(function(contents) {
+    var dict = Object.create(null);
+    var data = (contents + '').split('');
+    var out = [];
+    var currChar;
+    var phrase = data[0];
+    var code = 256;
+
+    for (var i = 1; i < data.length; i++) {
+      currChar = data[i];
+
+      if (dict[phrase + currChar]) {
+        phrase += currChar;
+      } else {
+        out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+        dict[phrase + currChar] = code;
+        code++;
+        phrase = currChar;
+      }
+    }
+
+    out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+
+    for (var j = 0; j < out.length; j++) {
+      out[j] = String.fromCharCode(out[j]);
+    }
+
+    return out.join('');
+  });
+}
+
+
