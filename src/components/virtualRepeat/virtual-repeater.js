@@ -475,7 +475,7 @@ function VirtualRepeatDirective($parse) {
 
 /** @ngInject */
 function VirtualRepeatController($scope, $element, $attrs, $browser, $document, $rootScope,
-    $$rAF, $mdUtil) {
+    $$rAF, $mdUtil, $compile) {
   this.$scope = $scope;
   this.$element = $element;
   this.$attrs = $attrs;
@@ -520,6 +520,8 @@ function VirtualRepeatController($scope, $element, $attrs, $browser, $document, 
    *     not specified), or angular.noop otherwise.
    */
   this.unwatchItemSize_ = angular.noop;
+
+  this.$compile = $compile;
 
   /**
    * Presently rendered blocks by repeat index.
@@ -830,6 +832,7 @@ VirtualRepeatController.prototype.updateBlock_ = function(block, index) {
       (block.scope.$index === index && block.scope[this.repeatName] === this.items[index])) {
     return;
   }
+
   block.new = false;
 
   // Update and digest the block's scope.
