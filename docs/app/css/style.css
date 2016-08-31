@@ -459,6 +459,20 @@ a.docs-logo {
   color: #666 !important;
   fill: #666 !important;
 }
+.docs-toolbar-tools .md-button {
+  display: flex;
+}
+.docs-toolbar-tools md-input-container {
+  /* TODO: doesn't work in RTL */
+  margin-right: 0;
+  margin-left: 10px;
+}
+.docs-toolbar-tools .md-errors-spacer {
+  display: none;
+}
+.docs-toolbar-tools md-autocomplete {
+  min-width: 250px;
+}
 @media (max-width: 400px) {
   .docs-tools {
     display: none;

@@ -603,8 +603,21 @@ function($scope, COMPONENTS, BUILDCONFIG, $mdSidenav, $timeout, $mdDialog, menu,
   this.toggleOpen = toggleOpen;
   this.autoFocusContent = false;
 
-
   var mainContentArea = document.querySelector("[role='main']");
+  var directives = [];
+
+  COMPONENTS.forEach(current => directives = directives.concat(current.docs));
+
+  $scope.searchComponents = function(text) {
+    var normalized = text ? text.toLowerCase() : text;
+    return text ? directives.filter(current => current.name.toLowerCase().indexOf(text) > -1) : [];
+  };
+
+  $scope.goToModule = function(item) {
+    if (item) {
+      $location.path(item.url);
+    }
+  };
 
   // *********************
   // Internal methods

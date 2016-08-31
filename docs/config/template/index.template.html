@@ -147,6 +147,23 @@
               <md-icon md-svg-src="img/icons/github.svg" style="color: rgba(255,255,255,0.97);"></md-icon>
               <md-tooltip>View Source on Github</md-tooltip>
             </md-button>
+
+            <md-autocomplete
+                class="md-body-1"
+                md-floating-label="Search the docs"
+                md-search-text="searchText"
+                md-items="item in searchComponents(searchText)"
+                md-selected-item-change="goToModule(item)"
+                md-item-text="item.name">
+
+              <md-item-template>
+                <strong>{{ item.name }}</strong> in {{ item.module }}
+              </md-item-template>
+
+              <md-not-found>
+                No components were found
+              </md-not-found>
+            </md-autocomplete>
           </div>
         </div>
       </div>
