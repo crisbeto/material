@@ -7,23 +7,17 @@
 angular
   .module('material.components.bottomSheet', [
     'material.core',
-    'material.components.backdrop'
+    'material.components.panel'
   ])
   .directive('mdBottomSheet', MdBottomSheetDirective)
-  .provider('$mdBottomSheet', MdBottomSheetProvider);
+  .service('$mdBottomSheet', MdBottomSheetService);
 
-/* @ngInject */
-function MdBottomSheetDirective($mdBottomSheet) {
+
+function MdBottomSheetDirective() {
   return {
     restrict: 'E',
-    link : function postLink(scope, element) {
-      element.addClass('_md');     // private md component indicator for styling
-
-      // When navigation force destroys an interimElement, then
-      // listen and $destroy() that interim instance...
-      scope.$on('$destroy', function() {
-        $mdBottomSheet.destroy();
-      });
+    compile: function(tElement) {
+      tElement.addClass('_md');     // private md component indicator for styling
     }
   };
 }
@@ -127,161 +121,137 @@ function MdBottomSheetDirective($mdBottomSheet) {
  *
  */
 
-function MdBottomSheetProvider($$interimElementProvider) {
+
+// TODO:
+// - grid example pushes content up for some reason
+// - exit animation doesn't work when swiping up and releasing over the backdrop -
+// can be fixed by adding pointer-events: none to the wrapper, but that breaks the old behavior
+function MdBottomSheetService($mdPanel, $mdUtil, $q, $log, $mdGesture,
+  $mdConstant, $mdTheming) {
   // how fast we need to flick down to close the sheet, pixels/ms
   var CLOSING_VELOCITY = 0.5;
   var PADDING = 80; // same as css
+  var currentPanel = null; // current open bottom sheet
 
-  return $$interimElementProvider('$mdBottomSheet')
-    .setDefaults({
-      methods: ['disableParentScroll', 'escapeToClose', 'clickOutsideToClose'],
-      options: bottomSheetDefaults
-    });
+  var service = {
+    show: show,
+    hide: closeFunctionFactory(true),
+    cancel: closeFunctionFactory(),
+    destroy: destroy
+  };
 
-  /* @ngInject */
-  function bottomSheetDefaults($animate, $mdConstant, $mdUtil, $mdTheming, $mdBottomSheet, $rootElement,
-                               $mdGesture, $log) {
-    var backdrop;
+  var DEFAULTS = {
+    escapeToClose: true,
+    clickOutsideToClose: true,
+    disableParentScroll: true,
+    focusOnOpen: true
+  };
 
-    return {
-      themable: true,
-      onShow: onShow,
-      onRemove: onRemove,
-      disableBackdrop: false,
-      escapeToClose: true,
-      clickOutsideToClose: true,
-      disableParentScroll: true
-    };
+  var panelOptions = {
+    onDomAdded: onShow,
+    onDomRemoved: service.cancel,
+    position: $mdPanel.newPanelPosition().absolute().bottom(0).left(0),
+    animation: $mdPanel.newPanelAnimation().withAnimation({
+      open: 'md-bottom-sheet-animate-open',
+      close: 'md-bottom-sheet-animate-close'
+    })
+  };
 
+  return service;
 
-    function onShow(scope, element, options, controller) {
+  function show(userConfig) {
+    var options = angular.extend({}, DEFAULTS, userConfig, panelOptions);
 
-      element = $mdUtil.extractElementByName(element, 'md-bottom-sheet');
+    // Map the old interimElement options to their mdPanel equivalents
+    // in order to keep backwards compatibility.
+    options.hasBackdrop = !userConfig.disableBackdrop;
+    if (userConfig.parent) options.attachTo = userConfig.parent;
 
-      // prevent tab focus or click focus on the bottom-sheet container
-      element.attr('tabindex',"-1");
+    destroy();
+    currentPanel = $mdPanel.create(options);
+    currentPanel.open();
+    currentPanel.bottomSheetDeferred = $q.defer();
 
-      // Once the md-bottom-sheet has `ng-cloak` applied on his template the opening animation will not work properly.
-      // This is a very common problem, so we have to notify the developer about this.
-      if (element.hasClass('ng-cloak')) {
-        var message = '$mdBottomSheet: using `<md-bottom-sheet ng-cloak >` will affect the bottom-sheet opening animations.';
-        $log.warn( message, element[0] );
-      }
-
-      if (!options.disableBackdrop) {
-        // Add a backdrop that will close on click
-        backdrop = $mdUtil.createBackdrop(scope, "md-bottom-sheet-backdrop md-opaque");
-
-        // Prevent mouse focus on backdrop; ONLY programatic focus allowed.
-        // This allows clicks on backdrop to propogate to the $rootElement and
-        // ESC key events to be detected properly.
-        
-        backdrop[0].tabIndex = -1;
-
-        if (options.clickOutsideToClose) {
-          backdrop.on('click', function() {
-            $mdUtil.nextTick($mdBottomSheet.cancel,true);
-          });
-        }
-
-        $mdTheming.inherit(backdrop, options.parent);
-
-        $animate.enter(backdrop, options.parent, null);
-      }
-
-      var bottomSheet = new BottomSheet(element, options.parent);
-      options.bottomSheet = bottomSheet;
-
-      $mdTheming.inherit(bottomSheet.element, options.parent);
-
-      if (options.disableParentScroll) {
-        options.restoreScroll = $mdUtil.disableScrollAround(bottomSheet.element, options.parent);
-      }
-
-      return $animate.enter(bottomSheet.element, options.parent, backdrop)
-        .then(function() {
-          var focusable = $mdUtil.findFocusTarget(element) || angular.element(
-            element[0].querySelector('button') ||
-            element[0].querySelector('a') ||
-            element[0].querySelector($mdUtil.prefixer('ng-click', true))
-          ) || backdrop;
-
-          if (options.escapeToClose) {
-            options.rootElementKeyupCallback = function(e) {
-              if (e.keyCode === $mdConstant.KEY_CODE.ESCAPE) {
-                $mdUtil.nextTick($mdBottomSheet.cancel,true);
-              }
-            };
-
-            $rootElement.on('keyup', options.rootElementKeyupCallback);
-            focusable && focusable.focus();
-          }
-        });
-
-    }
-
-    function onRemove(scope, element, options) {
-
-      var bottomSheet = options.bottomSheet;
-
-      if (!options.disableBackdrop) $animate.leave(backdrop);
-      return $animate.leave(bottomSheet.element).then(function() {
-        if (options.disableParentScroll) {
-          options.restoreScroll();
-          delete options.restoreScroll;
-        }
-
-        bottomSheet.cleanup();
-      });
-    }
-
-    /**
-     * BottomSheet class to apply bottom-sheet behavior to an element
-     */
-    function BottomSheet(element, parent) {
-      var deregister = $mdGesture.register(parent, 'drag', { horizontal: false });
-      parent.on('$md.dragstart', onDragStart)
-        .on('$md.drag', onDrag)
-        .on('$md.dragend', onDragEnd);
-
-      return {
-        element: element,
-        cleanup: function cleanup() {
-          deregister();
-          parent.off('$md.dragstart', onDragStart);
-          parent.off('$md.drag', onDrag);
-          parent.off('$md.dragend', onDragEnd);
-        }
-      };
-
-      function onDragStart(ev) {
-        // Disable transitions on transform so that it feels fast
-        element.css($mdConstant.CSS.TRANSITION_DURATION, '0ms');
-      }
-
-      function onDrag(ev) {
-        var transform = ev.pointer.distanceY;
-        if (transform < 5) {
-          // Slow down drag when trying to drag up, and stop after PADDING
-          transform = Math.max(-PADDING, transform / 2);
-        }
-        element.css($mdConstant.CSS.TRANSFORM, 'translate3d(0,' + (PADDING + transform) + 'px,0)');
-      }
-
-      function onDragEnd(ev) {
-        if (ev.pointer.distanceY > 0 &&
-            (ev.pointer.distanceY > 20 || Math.abs(ev.pointer.velocityY) > CLOSING_VELOCITY)) {
-          var distanceRemaining = element.prop('offsetHeight') - ev.pointer.distanceY;
-          var transitionDuration = Math.min(distanceRemaining / ev.pointer.velocityY * 0.75, 500);
-          element.css($mdConstant.CSS.TRANSITION_DURATION, transitionDuration + 'ms');
-          $mdUtil.nextTick($mdBottomSheet.cancel,true);
-        } else {
-          element.css($mdConstant.CSS.TRANSITION_DURATION, '');
-          element.css($mdConstant.CSS.TRANSFORM, '');
-        }
-      }
-    }
-
+    return currentPanel.bottomSheetDeferred.promise;
   }
 
+  function closeFunctionFactory(shouldResolve) {
+    return function(response) {
+      if (currentPanel) {
+        currentPanel.close().then(function(panelRef) {
+          panelRef.bottomSheetDeferred[shouldResolve ? 'resolve' : 'reject'](response);
+          destroy();
+        });
+      }
+    };
+  }
+
+  function destroy() {
+    if (currentPanel) {
+      if (!currentPanel.config.preserveScope) {
+        currentPanel.destroy();
+      }
+
+      currentPanel.cleanupGestures();
+      currentPanel.detach();
+      currentPanel = null;
+    }
+  }
+
+  function onShow() {
+    var element = angular.element(currentPanel.panelEl[0].querySelector('md-bottom-sheet'));
+
+    currentPanel.panelEl.addClass('md-bottom-sheet-wrapper');
+
+    // prevent tab focus or click focus on the bottom-sheet container
+    element.attr('tabindex', '-1');
+
+    $mdTheming.inherit(element, angular.element(currentPanel.config.attachTo));
+    currentPanel.cleanupGestures = addGestures(currentPanel.panelEl, currentPanel.panelContainer);
+  }
+
+  /**
+   * Applies gestures to the bottom sheet element.
+   */
+  function addGestures(element, wrapper) {
+    var deregister = $mdGesture.register(wrapper, 'drag', { horizontal: false });
+    wrapper.on('$md.dragstart', onDragStart)
+      .on('$md.drag', onDrag)
+      .on('$md.dragend', onDragEnd);
+
+    return function cleanupGestures() {
+      deregister();
+      wrapper.off('$md.dragstart', onDragStart);
+      wrapper.off('$md.drag', onDrag);
+      wrapper.off('$md.dragend', onDragEnd);
+    };
+
+    function onDragStart(ev) {
+      // Disable transitions on transform so that it feels fast
+      element.css($mdConstant.CSS.TRANSITION_DURATION, '0ms');
+    }
+
+    function onDrag(ev) {
+      var transform = ev.pointer.distanceY;
+      if (transform < 5) {
+        // Slow down drag when trying to drag up, and stop after PADDING
+        transform = Math.max(-PADDING, transform / 2);
+      }
+      element.css($mdConstant.CSS.TRANSFORM, 'translateY(' + (PADDING + transform) + 'px)');
+    }
+
+    function onDragEnd(ev) {
+      if (ev.pointer.distanceY > 0 &&
+          (ev.pointer.distanceY > 20 || Math.abs(ev.pointer.velocityY) > CLOSING_VELOCITY)) {
+        var distanceRemaining = element.prop('offsetHeight') - ev.pointer.distanceY;
+        var transitionDuration = Math.min(distanceRemaining / ev.pointer.velocityY * 0.75, 500);
+
+        element.css($mdConstant.CSS.TRANSITION_DURATION, transitionDuration + 'ms');
+        $mdUtil.nextTick(service.cancel, true);
+      } else {
+        element.css($mdConstant.CSS.TRANSITION_DURATION, '');
+        element.css($mdConstant.CSS.TRANSFORM, '');
+      }
+    }
+  }
 }

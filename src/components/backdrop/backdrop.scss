@@ -23,9 +23,6 @@ md-backdrop {
   &.md-dialog-backdrop {
     z-index: $z-index-dialog - 1;
   }
-  &.md-bottom-sheet-backdrop {
-    z-index: $z-index-bottom-sheet - 1;
-  }
   &.md-sidenav-backdrop {
     z-index: $z-index-sidenav - 1;
   }
